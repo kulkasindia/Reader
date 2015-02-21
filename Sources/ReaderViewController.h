@@ -26,8 +26,6 @@
 #import <UIKit/UIKit.h>
 
 #import "ReaderDocument.h"
-#import "ReaderConstants.h"
-#import "ReaderColors.h"
 
 @class ReaderViewController;
 

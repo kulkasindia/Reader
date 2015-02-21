@@ -41,9 +41,8 @@
 	UIUserInterfaceIdiom userInterfaceIdiom;
 
 	ReaderContentPage *theContentPage;
-    ReaderContentPage *theContentPage1;
+
 	ReaderContentThumb *theThumbView;
-    ReaderContentThumb *theThumbView1;
 
 	CGFloat realMaximumZoom;
 	CGFloat tempMaximumZoom;
@@ -51,8 +50,6 @@
 	CGFloat bugFixWidthInset;
 
 	BOOL zoomBounced;
-    
-    BOOL hasLandscapeDoublePage;
 }
 
 #pragma mark - Constants
@@ -74,7 +71,6 @@ static void *ReaderContentViewContext = &ReaderContentViewContext;
 static inline CGFloat zoomScaleThatFits(CGSize target, CGSize source, CGFloat bfwi)
 {
 	CGFloat w_scale = (target.width / (source.width + bfwi));
-    
 
 	CGFloat h_scale = (target.height / source.height);
 
@@ -85,16 +81,7 @@ static inline CGFloat zoomScaleThatFits(CGSize target, CGSize source, CGFloat bf
 
 - (void)updateMinimumMaximumZoom
 {
-    UIInterfaceOrientation orientation= [[UIApplication sharedApplication] statusBarOrientation];
-    CGSize pageBounds;
-    
-    if(UIInterfaceOrientationIsLandscape(orientation) && hasLandscapeDoublePage){
-        pageBounds = CGSizeMake(theContentPage.bounds.size.width + theContentPage1.bounds.size.width, theContentPage.bounds.size.height);
-    } else {
-        pageBounds = theContentPage.bounds.size;
-    }
-    
-	CGFloat zoomScale = zoomScaleThatFits(self.bounds.size, pageBounds, bugFixWidthInset);
+	CGFloat zoomScale = zoomScaleThatFits(self.bounds.size, theContentPage.bounds.size, bugFixWidthInset);
 
 	self.minimumZoomScale = zoomScale; self.maximumZoomScale = (zoomScale * ZOOM_MAXIMUM); // Limits
 
@@ -116,7 +103,7 @@ static inline CGFloat zoomScaleThatFits(CGSize target, CGSize source, CGFloat bf
 	if (UIEdgeInsetsEqualToEdgeInsets(self.contentInset, insets) == false) self.contentInset = insets;
 }
 
-- (instancetype)initWithFrame:(CGRect)frame fileURL:(NSURL *)fileURL page:(NSUInteger)page password:(NSString *)phrase doublePage:(BOOL)doublePage
+- (instancetype)initWithFrame:(CGRect)frame fileURL:(NSURL *)fileURL page:(NSUInteger)page password:(NSString *)phrase
 {
 	if ((self = [super initWithFrame:frame]))
 	{
@@ -147,59 +134,35 @@ static inline CGFloat zoomScaleThatFits(CGSize target, CGSize source, CGFloat bf
 
 		theContentPage = [[ReaderContentPage alloc] initWithURL:fileURL page:page password:phrase];
 
-        theContentPage1 = nil;
-        theThumbView1 = nil;
-        
-        hasLandscapeDoublePage = doublePage;
-        
 		if (theContentPage != nil) // Must have a valid and initialized content page
 		{
-            CGRect containerFrame = theContentPage.bounds;
-            
-            if(doublePage){
-                theContentPage.frame=CGRectMake(theContentPage.frame.origin.x, theContentPage.frame.origin.y,theContentPage.frame.size.width/2, theContentPage.frame.size.height/2);
-                //if double page 2
-                theContentPage1 = [[ReaderContentPage alloc] initWithURL:fileURL page:page+1 password:phrase];
-                theContentPage1.frame =CGRectMake(theContentPage.frame.size.width, theContentPage.frame.origin.y,theContentPage.frame.size.width, theContentPage.frame.size.height);
-                
-                containerFrame = CGRectMake(theContentPage.frame.origin.x, theContentPage.frame.origin.y, theContentPage.frame.size.width*2, theContentPage.frame.size.height);
-            }
-            theContainerView = [[UIView alloc] initWithFrame:containerFrame];
-            
+			theContainerView = [[UIView alloc] initWithFrame:theContentPage.bounds];
+
 			theContainerView.autoresizesSubviews = NO;
 			theContainerView.userInteractionEnabled = NO;
 			theContainerView.contentMode = UIViewContentModeRedraw;
 			theContainerView.autoresizingMask = UIViewAutoresizingNone;
 			theContainerView.backgroundColor = [UIColor whiteColor];
 
-			if ([[ReaderConstants sharedReaderConstants] showShadows]){ // Option
+#if (READER_SHOW_SHADOWS == TRUE) // Option
 
-						theContainerView.layer.shadowOffset = CGSizeMake(0.0f, 0.0f);
-						theContainerView.layer.shadowRadius = 4.0f; theContainerView.layer.shadowOpacity = 1.0f;
-						theContainerView.layer.shadowPath = [UIBezierPath bezierPathWithRect:theContainerView.bounds].CGPath;
+			theContainerView.layer.shadowOffset = CGSizeMake(0.0f, 0.0f);
+			theContainerView.layer.shadowRadius = 4.0f; theContainerView.layer.shadowOpacity = 1.0f;
+			theContainerView.layer.shadowPath = [UIBezierPath bezierPathWithRect:theContainerView.bounds].CGPath;
 
-			} // end of showShadows Option
-            
-			self.contentSize = theContentPage.bounds.size;
-            
-            [self centerScrollViewContent];
+#endif // end of READER_SHOW_SHADOWS Option
 
-			if ([[ReaderConstants sharedReaderConstants] enablePreview]) {  // Option
+			self.contentSize = theContentPage.bounds.size; [self centerScrollViewContent];
 
-						theThumbView = [[ReaderContentThumb alloc] initWithFrame:theContentPage.bounds]; // Page thumb view
-            
-            [theContainerView addSubview:theThumbView]; // Add the page thumb view to the container view
+#if (READER_ENABLE_PREVIEW == TRUE) // Option
 
-            if (theContentPage1) {
-                theThumbView1 = [[ReaderContentThumb alloc] initWithFrame:theContentPage1.frame];
-                [theContainerView addSubview:theThumbView1]; // Add the page thumb view to the container view
-                
-            }
-			}  // end of enablePreview Option
-      [theContainerView addSubview:theContentPage]; // Add the content page to the container view
-      if (theContentPage1) {
-          [theContainerView addSubview:theContentPage1];
-      }
+			theThumbView = [[ReaderContentThumb alloc] initWithFrame:theContentPage.bounds]; // Page thumb view
+
+			[theContainerView addSubview:theThumbView]; // Add the page thumb view to the container view
+
+#endif // end of READER_ENABLE_PREVIEW Option
+
+			[theContainerView addSubview:theContentPage]; // Add the content page to the container view
 
 			[self addSubview:theContainerView]; // Add the container view to the scroll view
 
@@ -214,11 +177,6 @@ static inline CGFloat zoomScaleThatFits(CGSize target, CGSize source, CGFloat bf
 	}
 
 	return self;
-}
-
-- (instancetype)initWithFrame:(CGRect)frame fileURL:(NSURL *)fileURL page:(NSUInteger)page password:(NSString *)phrase
-{
-    return [self initWithFrame:frame fileURL:fileURL page:page password:phrase doublePage:false];
 }
 
 - (void)dealloc
@@ -262,27 +220,17 @@ static inline CGFloat zoomScaleThatFits(CGSize target, CGSize source, CGFloat bf
 
 - (void)showPageThumb:(NSURL *)fileURL page:(NSInteger)page password:(NSString *)phrase guid:(NSString *)guid
 {
-	if ([[ReaderConstants sharedReaderConstants] enablePreview]) { // Option
+#if (READER_ENABLE_PREVIEW == TRUE) // Option
 
-		CGSize size = ((userInterfaceIdiom == UIUserInterfaceIdiomPad) ? CGSizeMake(PAGE_THUMB_LARGE, PAGE_THUMB_LARGE) : CGSizeMake(PAGE_THUMB_SMALL, PAGE_THUMB_SMALL));
+	CGSize size = ((userInterfaceIdiom == UIUserInterfaceIdiomPad) ? CGSizeMake(PAGE_THUMB_LARGE, PAGE_THUMB_LARGE) : CGSizeMake(PAGE_THUMB_SMALL, PAGE_THUMB_SMALL));
 
-		ReaderThumbRequest *request = [ReaderThumbRequest newForView:theThumbView fileURL:fileURL password:phrase guid:guid page:page size:size];
+	ReaderThumbRequest *request = [ReaderThumbRequest newForView:theThumbView fileURL:fileURL password:phrase guid:guid page:page size:size];
 
-		UIImage *image = [[ReaderThumbCache sharedInstance] thumbRequest:request priority:YES]; // Request the page thumb
+	UIImage *image = [[ReaderThumbCache sharedInstance] thumbRequest:request priority:YES]; // Request the page thumb
 
-		if ([image isKindOfClass:[UIImage class]]) [theThumbView showImage:image]; // Show image from cache
-	    
-	    if (theThumbView1) {
-	        ReaderThumbRequest *request1 = [ReaderThumbRequest newForView:theThumbView1 fileURL:fileURL password:phrase guid:guid page:page+1 size:size];
-	        
-	        UIImage *image1 = [[ReaderThumbCache sharedInstance] thumbRequest:request1 priority:YES]; // Request the page thumb
-	        
-	        if ([image1 isKindOfClass:[UIImage class]]) [theThumbView1 showImage:image1]; // Show image from cache
+	if ([image isKindOfClass:[UIImage class]]) [theThumbView showImage:image]; // Show image from cache
 
-	    }
-
-	} // end of enablePreview Option
-
+#endif // end of READER_ENABLE_PREVIEW Option
 }
 
 - (id)processSingleTap:(UITapGestureRecognizer *)recognizer
